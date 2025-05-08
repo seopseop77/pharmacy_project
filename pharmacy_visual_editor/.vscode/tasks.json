@@ -1,0 +1,34 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+      {
+        "label": "Run FastAPI server",
+        "type": "shell",
+        "command": "${workspaceFolder}/server/venv/Scripts/uvicorn.exe main:app --reload",
+        "options": {
+          "cwd": "${workspaceFolder}/server"
+        },
+        "problemMatcher": [],
+        "isBackground": true
+      },
+      {
+        "label": "Run React client",
+        "type": "shell",
+        "command": "npm start",
+        "options": {
+          "cwd": "${workspaceFolder}/client"
+        },
+        "problemMatcher": [],
+        "isBackground": true
+      },
+      {
+        "label": "Run both server and client",
+        "dependsOn": [
+          "Run FastAPI server",
+          "Run React client"
+        ],
+        "dependsOrder": "parallel"
+      }
+    ]
+  }
+  

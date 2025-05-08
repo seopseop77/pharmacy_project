@@ -1,0 +1,233 @@
+/* ========== 기본 설정 ========== */
+body {
+  font-family: 'Noto Sans KR', sans-serif;
+  background-color: #f4fdfc;
+  color: #222;
+  margin: 0;
+  padding: 0px;
+  font-size: 15px;
+}
+
+h1 {
+  color: #2cbfbe;
+  font-weight: 600;
+  font-size: 25px;
+  margin-bottom: 16px;
+  margin-top : 0px;
+}
+
+/* ========== 검색 카드 영역 ========== */
+.search-card {
+  background-color: white;
+  padding: 20px;
+  border-radius: 12px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+  width: fit-content;
+  max-width: 720px;
+  margin-bottom: 30px;
+  margin-left: 0;
+  margin-right: auto;
+}
+
+.search-options {
+  margin-bottom: 10px;
+  font-weight: 500;
+  color: #333;
+}
+
+/* ========== 검색 입력창 & 버튼 ========== */
+.autocomplete-container {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.autocomplete-container input[type="text"] {
+  border: 1px solid #d1e7e7;
+  border-radius: 8px;
+  padding: 12px 16px;
+  width: 320px;
+  font-size: 16px;
+  background-color: white;
+  transition: border-color 0.2s;
+}
+
+.autocomplete-container input[type="text"]:focus {
+  border-color: #2cbfbe;
+  outline: none;
+}
+
+.autocomplete-container button {
+  background-color: #38b2ac;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  padding: 12px 20px;
+  margin-left: 10px;
+  font-weight: 600;
+  font-size: 16px;
+  cursor: pointer;
+  transition: background-color 0.2s, transform 0.1s;
+}
+
+.autocomplete-container button:hover {
+  background-color: #2f9e9c;
+}
+
+.autocomplete-container button:active {
+  background-color: #277d7c;
+  transform: scale(0.97);
+}
+
+/* ========== 추천 리스트 & 최근 검색어 ========== */
+ul {
+  list-style: none;
+  padding: 5px;
+  border: 1px solid #d1e7e7;
+  border-radius: 8px;
+  width: 300px;
+  margin-top: 4px;
+  background-color: white;
+  position: absolute;
+  z-index: 10;
+  max-height: 220px;
+  overflow-y: auto;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+  top: 100%;
+  left: 0;
+}
+
+ul li {
+  padding: 8px 12px;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+ul li:hover,
+ul li.highlighted {
+  background-color: #e7f5ff;
+  font-weight: bold;
+}
+
+/* ========== 테이블 ========== */
+table {
+  border-collapse: collapse;
+  width: 100%;
+  background-color: white;
+  border-radius: 8px;
+  overflow: hidden;
+  font-size: 15px;
+  line-height: 1.4;
+}
+
+th {
+  background-color: #d1f2f2;
+  color: #333;
+  padding: 10px 12px;
+  font-weight: 600;
+  text-align: left;
+}
+
+td {
+  padding: 10px 12px;
+  border-bottom: 1px solid #eee;
+}
+
+tr:hover {
+  background-color: #f7fdfd;
+} 
+
+.fixed-cell {
+  width: 100px; /* 원하는 고정 너비 */
+  min-width: 100px;
+  max-width: 100px;
+  box-sizing: border-box;
+}
+
+.fixed-cell input {
+  width: 100%;
+  box-sizing: border-box;
+}
+
+
+/* ========== 재고 부족 강조 ========== */
+td.low-stock {
+  background-color: #ffe3e3; /* 🔴 심각 */
+  color: #c92a2a;
+  font-weight: bold;
+}
+
+td.warn-stock {
+  background-color: #fff3cd; /* 🟡 주의 */
+  color: #856404;
+  font-weight: bold;
+}
+
+/* ========== 페이지네이션 ========== */
+.pagination {
+  margin-top: 10px;
+  text-align: center;
+}
+
+.pagination button {
+  margin: 0 4px;
+  padding: 6px 10px;
+  background-color: #e9ecef;
+  color: black;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.pagination button:hover {
+  background-color: #ced4da;
+}
+
+.pagination button.active {
+  background-color: #339af0;
+  color: white;
+} 
+
+/* 파일 업로드 영역 */
+.upload-container {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 20px;
+}
+
+.upload-button {
+  background-color: #38b2ac;
+  color: white;
+  padding: 10px 12px;
+  border: none;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: bold;
+  cursor: pointer;
+  transition: background-color 0.2s, transform 0.1s;
+}
+
+.upload-button:hover {
+  background-color: #2f9e9c;
+}
+
+.upload-button:active {
+  transform: scale(0.97);
+}
+
+input[type="file"]::file-selector-button {
+  background-color: #e9ecef;
+  border: none;
+  padding: 8px 12px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: bold;
+  transition: background-color 0.2s;
+}
+
+input[type="file"]::file-selector-button:hover {
+  background-color: #ced4da;
+}
+

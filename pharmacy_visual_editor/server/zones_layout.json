@@ -1,0 +1,149 @@
+[
+  {
+    "id": 1746531886157,
+    "name": "구역1",
+    "x": 290,
+    "y": 111,
+    "width": 145,
+    "height": 73,
+    "color": "#ccff90",
+    "children": [
+      {
+        "id": 1746536035270,
+        "name": "구역1ㅇㄹ",
+        "x": 141,
+        "y": 68,
+        "width": 120,
+        "height": 80,
+        "color": "#fbbc04",
+        "children": []
+      },
+      {
+        "id": 1746536050893,
+        "name": "구역2",
+        "x": 374,
+        "y": 58,
+        "width": 120,
+        "height": 80,
+        "color": "#ffffff",
+        "children": []
+      }
+    ]
+  },
+  {
+    "id": 1746531887258,
+    "name": "",
+    "x": 539,
+    "y": 269.72499084472656,
+    "width": 120,
+    "height": 80,
+    "color": "#fbbc04",
+    "gridSize": {
+      "rows": 3,
+      "cols": 3
+    },
+    "subCells": [
+      {
+        "id": 1746683899226,
+        "row": 0,
+        "col": 0,
+        "rowSpan": 1,
+        "colSpan": 1,
+        "name": "셀 1-1"
+      },
+      {
+        "id": 1746683899227,
+        "row": 0,
+        "col": 1,
+        "rowSpan": 1,
+        "colSpan": 1,
+        "name": "셀 1-2"
+      },
+      {
+        "id": 1746683899228,
+        "row": 0,
+        "col": 2,
+        "rowSpan": 1,
+        "colSpan": 1,
+        "name": "셀 1-3"
+      },
+      {
+        "id": 1746683899229,
+        "row": 1,
+        "col": 0,
+        "rowSpan": 1,
+        "colSpan": 1,
+        "name": "셀 2-1"
+      },
+      {
+        "id": 1746683899230,
+        "row": 1,
+        "col": 1,
+        "rowSpan": 1,
+        "colSpan": 1,
+        "name": "셀 2-2"
+      },
+      {
+        "id": 1746683899231,
+        "row": 1,
+        "col": 2,
+        "rowSpan": 1,
+        "colSpan": 1,
+        "name": "셀 2-3"
+      },
+      {
+        "id": 1746683899232,
+        "row": 2,
+        "col": 0,
+        "rowSpan": 1,
+        "colSpan": 1,
+        "name": "셀 3-1"
+      },
+      {
+        "id": 1746683899233,
+        "row": 2,
+        "col": 1,
+        "rowSpan": 1,
+        "colSpan": 1,
+        "name": "셀 3-2"
+      },
+      {
+        "id": 1746683899234,
+        "row": 2,
+        "col": 2,
+        "rowSpan": 1,
+        "colSpan": 1,
+        "name": "셀 3-3"
+      }
+    ],
+    "children": []
+  },
+  {
+    "id": 1746531913682,
+    "name": "어쩔 ㅋㅋㅋ",
+    "x": 569,
+    "y": 137.72499084472656,
+    "width": 120,
+    "height": 80,
+    "color": "#ccff90"
+  },
+  {
+    "id": 1746534110970,
+    "name": "구역4",
+    "x": 231,
+    "y": 356,
+    "width": 120,
+    "height": 80,
+    "color": "#ffffff"
+  },
+  {
+    "id": 1746535989984,
+    "name": "구역5ㅇㄻㄴㅇ",
+    "x": 121,
+    "y": 176,
+    "width": 120,
+    "height": 80,
+    "color": "#ffffff",
+    "children": []
+  }
+]
