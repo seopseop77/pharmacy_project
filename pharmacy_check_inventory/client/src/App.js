@@ -94,7 +94,7 @@ function App() {
 
   useEffect(() => {
     if (showLowStockOnly) {
-      axios.get('http://localhost:8000/low-stock', {
+      axios.get('https://pharmacy-backend-3biq.onrender.com/low-stock', {
         params: { type: medicineType }
       })
         .then(res => {
@@ -116,7 +116,7 @@ function App() {
     }
 
     try {
-      const response = await axios.get('http://localhost:8000/search', {
+      const response = await axios.get('https://pharmacy-backend-3biq.onrender.com/search', {
         params: searchType === 'name'
           ? { name: value, type: medicineType }
           : { code: value, type: medicineType }
@@ -168,7 +168,7 @@ function App() {
     if (isNaN(parsed)) return;
   
     try {
-      await axios.patch('http://localhost:8000/update-info', {
+      await axios.patch('https://pharmacy-backend-3biq.onrender.com/update-info', {
         name,
         code,
         type: medicineType,
@@ -187,7 +187,7 @@ function App() {
     if (!trimmed) return;
   
     try {
-      await axios.patch('http://localhost:8000/update-info', {
+      await axios.patch('https://pharmacy-backend-3biq.onrender.com/update-info', {
         name,
         code,
         type: medicineType,
@@ -206,7 +206,7 @@ function App() {
     if (isNaN(parsed) || parsed <= 0) return;
   
     try {
-      await axios.patch('http://localhost:8000/update-info', {
+      await axios.patch('https://pharmacy-backend-3biq.onrender.com/update-info', {
         name,
         code,
         type: medicineType,
@@ -243,7 +243,7 @@ function App() {
 
   const fetchSuggestions = async (query) => {
     try {
-      const response = await axios.get("http://localhost:8000/autocomplete", {
+      const response = await axios.get("https://pharmacy-backend-3biq.onrender.com/autocomplete", {
         params: { partial: query, type: medicineType }
       });
       setSuggestions(response.data);
@@ -254,7 +254,7 @@ function App() {
 
   const fetchRecentSearches = async () => {
     try {
-      const response = await axios.get('http://localhost:8000/recent-searches', {
+      const response = await axios.get('https://pharmacy-backend-3biq.onrender.com/recent-searches', {
         params: { type: medicineType }
       });
       setRecentSearches(response.data.slice(0, 7));
@@ -266,7 +266,7 @@ function App() {
 
   const saveRecentSearch = async (keyword) => {
     try {
-      await axios.post('http://localhost:8000/add-search', null, {
+      await axios.post('https://pharmacy-backend-3biq.onrender.com/add-search', null, {
         params: { keyword, type: medicineType }
       });
     } catch (err) {
@@ -302,7 +302,7 @@ function App() {
     formData.append("file", uploadFile);
 
     try {
-      await axios.post(`http://localhost:8000/upload-inventory?type=${medicineType}`, formData, {
+      await axios.post(`https://pharmacy-backend-3biq.onrender.com/upload-inventory?type=${medicineType}`, formData, {
         headers: { "Content-Type": "multipart/form-data" }
       });
       setUploadStatus("업로드 성공!");
