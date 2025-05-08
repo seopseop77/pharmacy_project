@@ -1,0 +1,2 @@
+# 전체 백업 zip 파일 무시
+backup/*.zip
