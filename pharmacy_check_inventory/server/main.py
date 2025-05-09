@@ -6,6 +6,7 @@ import json
 import shutil
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
+from database import conn
 
 app = FastAPI()
 
@@ -22,7 +23,15 @@ app.add_middleware(
 INVENTORY_FILES = {
     "professional": "전문약_재고.csv",
     "general": "일반약_재고.csv"
-}
+} 
+
+# FastAPI에서 supabase로 테이블 연결 
+@app.get("/needs")
+def get_all_needs():
+    with conn.cursor() as cur:
+        cur.execute("SELECT * FROM needs ORDER BY id")
+        rows = cur.fetchall()
+        return rows
 
 # 데이터 표준화 함수
 def load_inventory(med_type: str):
