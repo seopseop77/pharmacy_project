@@ -74,8 +74,8 @@ def update_general_stock(stock_path, incoming_path, sales_path, output_path):
 if __name__ == '__main__':
     df = update_general_stock(
         '일반약 재고현황_20250415.csv',
-        '입고상세내역_20250421-20250503 일반약.csv',
-        '판매상세내역_20250421-20250503 일반약.csv',
-        '최종_일반약재고현황.csv'
+        '입고상세내역_20250421-20250510 일반약.csv',
+        '판매상세내역_20250421-20250510 일반약.csv',
+        '최종_일반약재고현황_202050510.csv'
     )
     print(df.head())

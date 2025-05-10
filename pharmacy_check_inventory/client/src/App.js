@@ -1,9 +1,10 @@
 import React, { useEffect, useState } from 'react';
 import axios from 'axios';
 import { useRef } from 'react';
+import { supabase } from './supabase'; // supabase 클라이언트 불러오기
 import './App.css';
 
-function App() {
+function App( {userId, onLogout} ) {
   const [searchType, setSearchType] = useState('name');
   const [medicineType, setMedicineType] = useState('professional');
   const [inputValue, setInputValue] = useState('');
@@ -23,6 +24,8 @@ function App() {
   const inputRefs = useRef({});
 
   const ITEMS_PER_PAGE = 10; 
+
+  const BASE_URL = process.env.REACT_APP_API_BASE;
 
   function EditableCell({
     rowKey, field, value, isEditing, setEditing, onSave, inputRefs, idx,
@@ -94,8 +97,8 @@ function App() {
 
   useEffect(() => {
     if (showLowStockOnly) {
-      axios.get('https://pharmacy-backend-3biq.onrender.com/low-stock', {
-        params: { type: medicineType }
+      axios.get(`${BASE_URL}/low-stock`, {
+        params: { type: medicineType, user_id: userId }
       })
         .then(res => {
           setResults(res.data);
@@ -106,7 +109,7 @@ function App() {
           setResults([]);
         });
     }
-  }, [showLowStockOnly, medicineType]);
+  }, [showLowStockOnly, medicineType]); 
 
   const handleSearch = async (overrideValue = null) => {
     const value = overrideValue ?? inputValue;
@@ -116,10 +119,10 @@ function App() {
     }
 
     try {
-      const response = await axios.get('https://pharmacy-backend-3biq.onrender.com/search', {
+      const response = await axios.get(`${BASE_URL}/search`, {
         params: searchType === 'name'
-          ? { name: value, type: medicineType }
-          : { code: value, type: medicineType }
+          ? { name: value, type: medicineType, user_id: userId }
+          : { code: value, type: medicineType, user_id: userId }
       });
       await saveRecentSearch(value);
       setResults(response.data);
@@ -168,11 +171,12 @@ function App() {
     if (isNaN(parsed)) return;
   
     try {
-      await axios.patch('https://pharmacy-backend-3biq.onrender.com/update-info', {
+      await axios.patch(`${BASE_URL}/update-info`, {
         name,
         code,
         type: medicineType,
         need: parsed,
+        user_id: userId,
         location: currentLocation // 현재 위치 유지
       });
       await handleSearch();
@@ -187,11 +191,12 @@ function App() {
     if (!trimmed) return;
   
     try {
-      await axios.patch('https://pharmacy-backend-3biq.onrender.com/update-info', {
+      await axios.patch(`${BASE_URL}/update-info`, {
         name,
         code,
         type: medicineType,
         need: currentNeed,       // 현재 필요 재고 유지
+        user_id: userId,
         location: trimmed
       });
       await handleSearch();
@@ -206,10 +211,11 @@ function App() {
     if (isNaN(parsed) || parsed <= 0) return;
   
     try {
-      await axios.patch('https://pharmacy-backend-3biq.onrender.com/update-info', {
+      await axios.patch(`${BASE_URL}/update-info`, {
         name,
         code,
         type: medicineType,
+        user_id: userId,
         unitCount: parsed
       });
       await handleSearch();
@@ -243,8 +249,8 @@ function App() {
 
   const fetchSuggestions = async (query) => {
     try {
-      const response = await axios.get("https://pharmacy-backend-3biq.onrender.com/autocomplete", {
-        params: { partial: query, type: medicineType }
+      const response = await axios.get(`${BASE_URL}/autocomplete`, {
+        params: { partial: query, type: medicineType, user_id: userId }
       });
       setSuggestions(response.data);
     } catch (err) {
@@ -254,8 +260,8 @@ function App() {
 
   const fetchRecentSearches = async () => {
     try {
-      const response = await axios.get('https://pharmacy-backend-3biq.onrender.com/recent-searches', {
-        params: { type: medicineType }
+      const response = await axios.get(`${BASE_URL}/recent-searches`, {
+        params: { type: medicineType, user_id: userId }
       });
       setRecentSearches(response.data.slice(0, 7));
     } catch (err) {
@@ -266,8 +272,8 @@ function App() {
 
   const saveRecentSearch = async (keyword) => {
     try {
-      await axios.post('https://pharmacy-backend-3biq.onrender.com/add-search', null, {
-        params: { keyword, type: medicineType }
+      await axios.post(`${BASE_URL}/add-search`, null, {
+        params: { keyword, type: medicineType, user_id: userId }
       });
     } catch (err) {
       console.error("최근 검색어 저장 실패:", err);
@@ -302,7 +308,7 @@ function App() {
     formData.append("file", uploadFile);
 
     try {
-      await axios.post(`https://pharmacy-backend-3biq.onrender.com/upload-inventory?type=${medicineType}`, formData, {
+      await axios.post(`${BASE_URL}/upload-inventory?type=${medicineType}&user_id=${userId}`, formData, {
         headers: { "Content-Type": "multipart/form-data" }
       });
       setUploadStatus("업로드 성공!");
@@ -310,7 +316,12 @@ function App() {
       console.error("업로드 실패:", err);
       setUploadStatus("업로드 실패");
     }
+  }; 
+
+  const handleLogout = async () => {
+    onLogout();  // Root에서 logout 처리
   };
+
 
   const filteredResults = results;
   const totalPages = Math.ceil(filteredResults.length / ITEMS_PER_PAGE);
@@ -327,9 +338,25 @@ function App() {
         minHeight: '100vh'
       }}
     >
-      <h1>
-        약국 재고 검색 ({medicineType === 'professional' ? '전문약' : '일반약'})
-      </h1>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <h1>
+          약국 재고 검색 ({medicineType === 'professional' ? '전문약' : '일반약'})
+        </h1>
+        <button
+          onClick={handleLogout}
+          style={{
+            backgroundColor: '#d32f2f',
+            color: 'white',
+            border: 'none',
+            padding: '8px 14px',
+            borderRadius: '6px',
+            cursor: 'pointer',
+            fontWeight: 'bold'
+          }}
+        >
+          로그아웃
+        </button>
+      </div>
 
       {/* 검색 타입 + 약종 선택 */}
       <div className="search-card">
