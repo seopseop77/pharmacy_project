@@ -440,7 +440,12 @@ const handleKeyDown = (e) => {
             value={inputValue}
             onChange={handleInputChange}
             onFocus={handleInputFocus}
-            onKeyDown={handleKeyDown}
+            onKeyDown={(e) => {
+              // 오직 이 검색 input에서만 검색용 handleKeyDown 실행
+              if (e.currentTarget === document.activeElement) {
+                handleKeyDown(e);
+              }
+            }}
             style={{ padding: '8px', width: '300px', marginRight: '10px' }}
           />
           <button
