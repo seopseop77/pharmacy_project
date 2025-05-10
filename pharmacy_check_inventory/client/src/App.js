@@ -60,7 +60,9 @@ function App( {userId, onLogout} ) {
             nextInput.focus();
             nextInput.select();
           }
-        }, 10);
+        }, 10); 
+
+        e.stopPropagation(); // ✅ 여기 추가: 검색창에 이벤트 전달 막기
       }
     };
   
