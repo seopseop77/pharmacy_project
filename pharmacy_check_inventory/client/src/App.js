@@ -27,6 +27,9 @@ function App( {userId, onLogout} ) {
 
   const BASE_URL = process.env.REACT_APP_API_BASE;
 
+  const searchInputRef = useRef(null);
+
+
   function EditableCell({
     rowKey, field, value, isEditing, setEditing, onSave, inputRefs, idx,
     type = "text", generateRowKey
@@ -141,10 +144,9 @@ function App( {userId, onLogout} ) {
   };
 
 const handleKeyDown = (e) => {
-  const activeList = inputValue.trim() === "" ? recentSearches : suggestions;
+  if (document.activeElement !== searchInputRef.current) return; // 검색창에 포커스 없으면 무시
 
-  // 검색창에 focus된 경우에만 Enter로 검색 실행
-  const isSearchInputFocused = document.activeElement.getAttribute('placeholder')?.includes('입력');
+  const activeList = inputValue.trim() === "" ? recentSearches : suggestions;
 
   if (activeList.length > 0) {
     if (e.key === 'ArrowDown') {
@@ -435,6 +437,7 @@ const handleKeyDown = (e) => {
         {/* 검색창 + 추천 리스트 */}
         <div className="autocomplete-container" style={{ position: 'relative', marginBottom: '10px' }}>
           <input
+            ref={searchInputRef}
             type="text"
             placeholder={searchType === 'name' ? "약 이름 입력" : "약 코드 입력"}
             value={inputValue}
