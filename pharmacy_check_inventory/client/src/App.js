@@ -43,6 +43,8 @@ function App( {userId, onLogout} ) {
   
     const handleKeyDown = (e) => {
       if (e.key === 'Enter') {
+        e.stopPropagation();  // ✅ 전파 방지 추가
+        e.preventDefault();   // ✅ 기본 동작 방지 추가 (폼 제출 등)
         const inputValue = e.target.value;
         const nextIdx = idx + 1;
         const nextKey = generateRowKey(nextIdx);
