@@ -145,8 +145,11 @@ function App( {userId, onLogout} ) {
 
 const handleKeyDown = (e) => {
   if (document.activeElement !== searchInputRef.current) return; // 검색창에 포커스 없으면 무시
-
+  
   const activeList = inputValue.trim() === "" ? recentSearches : suggestions;
+
+  // 검색창에 focus된 경우에만 Enter로 검색 실행
+  const isSearchInputFocused = document.activeElement.getAttribute('placeholder')?.includes('입력');
 
   if (activeList.length > 0) {
     if (e.key === 'ArrowDown') {
