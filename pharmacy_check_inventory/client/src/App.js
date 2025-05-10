@@ -145,7 +145,7 @@ function App( {userId, onLogout} ) {
 
 const handleKeyDown = (e) => {
   if (document.activeElement !== searchInputRef.current) return; // 검색창에 포커스 없으면 무시
-  
+
   const activeList = inputValue.trim() === "" ? recentSearches : suggestions;
 
   // 검색창에 focus된 경우에만 Enter로 검색 실행
@@ -438,31 +438,40 @@ const handleKeyDown = (e) => {
 
 
         {/* 검색창 + 추천 리스트 */}
-        <div className="autocomplete-container" style={{ position: 'relative', marginBottom: '10px' }}>
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            handleSearch();
+          }}
+          className="autocomplete-container"
+          style={{ position: 'relative', marginBottom: '10px' }}
+        >
           <input
-            ref={searchInputRef}
             type="text"
             placeholder={searchType === 'name' ? "약 이름 입력" : "약 코드 입력"}
             value={inputValue}
             onChange={handleInputChange}
             onFocus={handleInputFocus}
             onKeyDown={(e) => {
-              // 오직 이 검색 input에서만 검색용 handleKeyDown 실행
-              if (e.currentTarget === document.activeElement) {
-                handleKeyDown(e);
+              const list = inputValue.trim() === "" ? recentSearches : suggestions;
+              if (e.key === 'ArrowDown') {
+                e.preventDefault();
+                setHighlightedIndex(i => (i + 1) % list.length);
+              } else if (e.key === 'ArrowUp') {
+                e.preventDefault();
+                setHighlightedIndex(i => (i - 1 + list.length) % list.length);
+              } else if (e.key === 'Enter' && highlightedIndex >= 0) {
+                e.preventDefault();
+                const sel = list[highlightedIndex];
+                setInputValue(sel);
+                setSuggestions([]);
+                setRecentSearches([]);
+                setHighlightedIndex(-1);
               }
             }}
             style={{ padding: '8px', width: '300px', marginRight: '10px' }}
           />
-          <button
-            onClick={() => {
-              setButtonActive(true);
-              setTimeout(() => setButtonActive(false), 150);
-              handleSearch(inputValue);
-            }}
-          >
-            검색
-          </button>
+          <button type="submit">검색</button>
 
           {searchType === 'name' && inputValue.trim() !== "" && suggestions.length > 0 && (
             <ul className="suggestions-dropdown">
@@ -514,7 +523,7 @@ const handleKeyDown = (e) => {
               ))}
             </ul>
           )}
-        </div>
+        </form>
       </div>
 
       {/* 약종별 파일 업로드 */}
