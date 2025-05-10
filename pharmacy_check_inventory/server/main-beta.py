@@ -19,243 +19,177 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# CSV 파일 경로
+INVENTORY_FILES = {
+    "professional": "전문약_재고.csv",
+    "general": "일반약_재고.csv"
+} 
+
 # FastAPI에서 supabase로 테이블 연결 
-# @app.get("/needs")
-# def get_all_needs():
-#     with conn.cursor() as cur:
-#         cur.execute("SELECT * FROM needs ORDER BY id")
-#         rows = cur.fetchall()
-#         return rows
-
-def load_inventory(user_id: str, med_type: str) -> pd.DataFrame:
+@app.get("/needs")
+def get_all_needs():
     with conn.cursor() as cur:
-        cur.execute("""
-            SELECT * FROM needs
-            WHERE user_id = %s AND type = %s
-        """, (user_id, med_type))
+        cur.execute("SELECT * FROM needs ORDER BY id")
         rows = cur.fetchall()
+        return rows
 
-    if not rows:
-        return pd.DataFrame(columns=["약 이름", "약 코드", "현재 재고", "위치", "필요 재고", "통당 수량", "필요 통 수", "현재 통 수", "주문 통 수"])
+# 데이터 표준화 함수
+def load_inventory(med_type: str):
+    if med_type not in INVENTORY_FILES:
+        raise HTTPException(status_code=400, detail="약 종류는 professional 또는 general 이어야 합니다.")
 
-    df = pd.DataFrame(rows)
+    path = INVENTORY_FILES[med_type]
+    if not os.path.exists(path):
+        return pd.DataFrame(columns=["약 이름", "약 코드", "현재 재고", "위치", "필요 재고", "유통기한"])
 
+    # ✅ 일반약일 경우 두 번째 행 건너뛰기
+    if med_type == "general":
+        df = pd.read_csv(path, encoding="utf-8", skiprows=[1])
+    else:
+        df = pd.read_csv(path, encoding="utf-8")
+
+    # 열 이름 통일
+    if med_type == "professional":
+        df = df.rename(columns={
+            "약품명": "약 이름",
+            "약품코드": "약 코드",
+            "재고합계": "현재 재고"
+        })
+    else:
+        df = df.rename(columns={
+            "상품명": "약 이름",
+            "바코드": "약 코드",
+            "재고수량": "현재 재고"
+        })
+
+    custom_needs = load_custom_needs(med_type)
+    custom_locations = load_custom_locations(med_type)
+
+    # 사용자 설정 필요 재고 반영 
+    df["필요 재고"] = df.apply(
+        lambda row: custom_needs.get(f"{row['약 이름']}::{row['약 코드']}", 10),
+        axis=1
+    )
+    
+    # 사용자 설정 위치 반영
+    df["위치"] = df.apply(
+        lambda row: custom_locations.get(f"{row['약 이름']}::{row['약 코드']}", "미지정"),
+        axis=1
+    ) 
+
+    # 통당 수량 계산
+    unit_counts = load_unit_counts(med_type)
+    df["통당 수량"] = df.apply(
+        lambda row: unit_counts.get(f"{row['약 이름']}::{row['약 코드']}", 1),
+        axis=1
+    )
+
+    # ✅ 콤마 제거 + 숫자 변환 (오류 발생 시 명시적으로 예외 처리)
     try:
-        df["현재 재고"] = df["present_cour"].astype(str).str.replace(",", "", regex=False).astype(float)
-        df["필요 재고"] = df["need_count"].astype(str).str.replace(",", "", regex=False).astype(float)
-        df["통당 수량"] = df["unit_count"].astype(str).str.replace(",", "", regex=False).astype(float)
+        df["현재 재고"] = df["현재 재고"].astype(str).str.replace(",", "", regex=False).astype(float)
+        df["필요 재고"] = df["필요 재고"].astype(str).str.replace(",", "", regex=False).astype(float)
+        df["통당 수량"] = df["통당 수량"].astype(str).str.replace(",", "", regex=False).astype(float)
     except ValueError as e:
-        raise ValueError(f"재고 수치 변환 중 오류 발생: {e}")
-
+        raise ValueError(f"재고 수치 변환 중 오류 발생: {e}") 
+    
     df["필요 통 수"] = df["필요 재고"] / df["통당 수량"]
     df["현재 통 수"] = df["현재 재고"] / df["통당 수량"]
     df["주문 통 수"] = df["필요 통 수"] - df["현재 통 수"]
 
-    # 열 이름 통일 (기존과 호환되도록)
-    df = df.rename(columns={
-        "drug_name": "약 이름",
-        "drug_code": "약 코드",
-        "location": "위치"
-    })
+    # 기본값 설정 
+    # df["유통기한"] = df.get("유통기한", "미지정")
 
-    return df[["약 이름", "약 코드", "현재 재고", "위치", "필요 재고", "통당 수량", "필요 통 수", "현재 통 수", "주문 통 수"]] 
+    return df
 
-# 업로드 API → 엑셀 파일을 파싱해서 Supabase DB에 삽입
+
+# 업로드 API
 @app.post("/upload-inventory")
-async def upload_inventory(
-    type: str = Query(...),
-    user_id: str = Query("default"),
-    file: UploadFile = File(...)
-):
-
-    if type not in ["professional", "general"]:
+async def upload_inventory(type: str = Query(...), file: UploadFile = File(...)):
+    if type not in INVENTORY_FILES:
         raise HTTPException(status_code=400, detail="type은 professional 또는 general 이어야 합니다.")
 
-    # 엑셀 파일 읽기
-    try:
-        if type == "general":
-            df = pd.read_csv(file.file, encoding="utf-8", skiprows=[1])
-            df = df.rename(columns={
-                "상품명": "약 이름",
-                "바코드": "약 코드",
-                "재고수량": "현재 재고"
-            })
-        else:
-            df = pd.read_csv(file.file, encoding="utf-8")
-            df = df.rename(columns={
-                "약품명": "약 이름",
-                "약품코드": "약 코드",
-                "재고합계": "현재 재고"
-            })
-    except Exception as e:
-        raise HTTPException(status_code=400, detail=f"파일 파싱 오류: {e}")
+    filename = INVENTORY_FILES[type]
+    with open(filename, "wb") as buffer:
+        shutil.copyfileobj(file.file, buffer)
 
-    # 기본값 추가
-    df["필요 재고"] = 10
-    df["위치"] = "미지정"
-    df["통당 수량"] = 1
+    return {"status": "ok", "message": f"{type} 재고가 성공적으로 업데이트되었습니다."}
 
-    # 숫자 처리
-    try:
-        df["현재 재고"] = df["현재 재고"].astype(str).str.replace(",", "", regex=False).astype(float)
-    except:
-        df["현재 재고"] = 0
-
-    # Supabase DB 삽입
-    with conn.cursor() as cur:
-        cur.execute("DELETE FROM needs WHERE user_id = %s AND type = %s", (user_id, type))
-
-        for _, row in df.iterrows():
-            cur.execute("""
-                INSERT INTO needs (user_id, type, drug_name, drug_code, present_cour, need_count, location, unit_count)
-                VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
-            """, (
-                user_id,
-                type,
-                row["약 이름"],
-                str(row["약 코드"]),
-                row["현재 재고"],
-                row["필요 재고"],
-                row["위치"],
-                row["통당 수량"]
-            ))
-        conn.commit()
-
-    return {"status": "ok", "message": f"{type} 재고가 성공적으로 Supabase에 저장되었습니다."}
-
-# 검색 API → Supabase에서 사용자별 약 목록 조회
+# 검색 API
 @app.get("/search")
 def search_medicine(
     name: str = Query("", alias="name"),
     code: str = Query("", alias="code"),
-    type: str = Query("professional"),
-    user_id: str = Query("default")
+    type: str = Query("professional")
 ):
-    with conn.cursor() as cur:
-        if name == "all" or code == "all":
-            cur.execute("SELECT * FROM needs WHERE user_id = %s AND type = %s", (user_id, type))
-        elif name:
-            cur.execute("SELECT * FROM needs WHERE user_id = %s AND type = %s AND drug_name ILIKE %s", (user_id, type, f"%{name}%"))
-        elif code:
-            cur.execute("SELECT * FROM needs WHERE user_id = %s AND type = %s AND drug_code ILIKE %s", (user_id, type, f"%{code}%"))
-        else:
-            return []
+    df = load_inventory(type)
+    name = name.strip()
+    code = code.strip()
 
-        rows = cur.fetchall()
-
-    df = pd.DataFrame(rows)
-
-    if df.empty:
-        return []
-
-    df = df.rename(columns={
-        "drug_name": "약 이름",
-        "drug_code": "약 코드",
-        "present_cour": "현재 재고",
-        "need_count": "필요 재고",
-        "location": "위치",
-        "unit_count": "통당 수량"
-    })
-
-    try:
-        df["필요 통 수"] = df["필요 재고"] / df["통당 수량"]
-        df["현재 통 수"] = df["현재 재고"] / df["통당 수량"]
-        df["주문 통 수"] = df["필요 통 수"] - df["현재 통 수"]
-    except:
-        df["필요 통 수"] = 0
-        df["현재 통 수"] = 0
-        df["주문 통 수"] = 0
-
-    return JSONResponse(content=df.fillna("NaN").to_dict(orient="records"))
+    if name == "all" or code == "all":
+        result = df
+    elif name:
+        result = df[df["약 이름"].str.contains(name, case=False, regex=False, na=False)]
+    elif code:
+        df["약 코드"] = df["약 코드"].astype(str)
+        result = df[df["약 코드"].str.contains(code, case=False, regex=False, na=False)]
+    else:
+        result = pd.DataFrame()
+    return JSONResponse(content=result.fillna("NaN").to_dict(orient="records"))
 
 # 자동완성
 @app.get("/autocomplete")
-def autocomplete(
-    partial: str,
-    type: str = Query("professional"),
-    user_id: str = Query("default")
-):
-    with conn.cursor() as cur:
-        cur.execute("""
-            SELECT DISTINCT drug_name FROM needs
-            WHERE user_id = %s AND type = %s AND drug_name ILIKE %s
-        """, (user_id, type, f"%{partial}%"))
-
-        matches = [row["drug_name"] for row in cur.fetchall() if row["drug_name"]]
-
-    return matches
+def autocomplete(partial: str, type: str = Query("professional")):
+    df = load_inventory(type)
+    matches = df[df["약 이름"].str.contains(partial, case=False, regex=False, na=False)]
+    return matches["약 이름"].dropna().unique().tolist()
 
 # 최근 검색어 저장 관련
+RECENT_SEARCH_FILE = "recent_searches.json" 
+
+def get_recent_search_file(med_type: str):
+    if med_type not in ["professional", "general"]:
+        raise HTTPException(status_code=400, detail="type은 professional 또는 general 이어야 합니다.")
+    return f"recent_searches_{med_type}.json"
+
+def load_recent_searches(med_type: str):
+    path = get_recent_search_file(med_type)
+    if os.path.exists(path):
+        with open(path, "r", encoding="utf-8") as f:
+            return json.load(f)
+    return []
+
+def save_recent_searches(keywords, med_type: str):
+    path = get_recent_search_file(med_type)
+    with open(path, "w", encoding="utf-8") as f:
+        json.dump(keywords, f, ensure_ascii=False)
+
+
 @app.post("/add-search")
-def add_recent_search(keyword: str = Query(...), type: str = Query("professional"), user_id: str = Query("default")):
+def add_recent_search(
+    keyword: str = Query(...),
+    type: str = Query("professional")
+):
     keyword = keyword.strip()
     if not keyword:
         return {"status": "empty"}
 
-    with conn.cursor() as cur:
-        # 중복 제거
-        cur.execute("""
-            DELETE FROM recent_searches
-            WHERE user_id = %s AND type = %s AND keyword = %s
-        """, (user_id, type, keyword))
-
-        # 삽입
-        cur.execute("""
-            INSERT INTO recent_searches (user_id, type, keyword, created_at)
-            VALUES (%s, %s, %s, NOW())
-        """, (user_id, type, keyword))
-        conn.commit()
+    recent = load_recent_searches(type)
+    if keyword in recent:
+        recent.remove(keyword)
+    recent.insert(0, keyword)
+    recent = recent[:10]
+    save_recent_searches(recent, type)
 
     return {"status": "ok"}
 
 @app.get("/recent-searches")
-def get_recent_searches(type: str = Query("professional"), user_id: str = Query("default")):
-    with conn.cursor() as cur:
-        cur.execute("""
-            SELECT keyword FROM recent_searches
-            WHERE user_id = %s AND type = %s
-            ORDER BY created_at DESC
-            LIMIT 10
-        """, (user_id, type))
-        keywords = [row["keyword"] for row in cur.fetchall()]
-    return keywords 
+def get_recent_searches(type: str = Query("professional")):
+    return load_recent_searches(type)
 
-# 필요 재고 및 위치 수정 및 저장 
+# 재고 부족 필터링
 @app.get("/low-stock")
-def get_low_stock_medicines(
-    type: str = Query(...),
-    user_id: str = Query("default")
-):
-    with conn.cursor() as cur:
-        cur.execute("""
-            SELECT * FROM needs
-            WHERE user_id = %s AND type = %s
-        """, (user_id, type))
-        rows = cur.fetchall()
-
-    if not rows:
-        return []
-
-    import pandas as pd
-    df = pd.DataFrame(rows)
-
-    df = df.rename(columns={
-        "drug_name": "약 이름",
-        "drug_code": "약 코드",
-        "present_cour": "현재 재고",
-        "need_count": "필요 재고",
-        "location": "위치",
-        "unit_count": "통당 수량"
-    })
-
-    try:
-        df["필요 통 수"] = df["필요 재고"] / df["통당 수량"]
-        df["현재 통 수"] = df["현재 재고"] / df["통당 수량"]
-        df["주문 통 수"] = df["필요 통 수"] - df["현재 통 수"]
-    except:
-        df["필요 통 수"] = 0
-        df["현재 통 수"] = 0
-        df["주문 통 수"] = 0
+def get_low_stock_medicines(type: str = Query(..., alias="type")):
+    df = load_inventory(type)
 
     def get_status(row):
         if row["현재 재고"] < row["필요 재고"]:
@@ -267,11 +201,58 @@ def get_low_stock_medicines(
 
     df["부족상태"] = df.apply(get_status, axis=1)
 
+    # ✅ 부족 상태(심각, 주의)인 항목만 필터링
     filtered = df[df["부족상태"].isin(["심각", "주의"])]
 
     return JSONResponse(content=filtered.fillna("NaN").to_dict(orient="records"))
 
-# 필요 재고 및 위치 수정 및 저장
+# 필요 재고 및 위치 수정 및 저장 
+def get_needs_file(type: str):
+    return f"needs_{type}.json"
+
+def load_custom_needs(type: str):
+    path = get_needs_file(type)
+    if os.path.exists(path):
+        with open(path, "r", encoding="utf-8") as f:
+            return json.load(f)
+    return {}
+
+def save_custom_needs(type: str, data: dict):
+    path = get_needs_file(type)
+    with open(path, "w", encoding="utf-8") as f:
+        json.dump(data, f, ensure_ascii=False)  
+
+def get_location_file(type: str):
+    return f"locations_{type}.json"
+
+def load_custom_locations(type: str):
+    path = get_location_file(type)
+    if os.path.exists(path):
+        with open(path, "r", encoding="utf-8") as f:
+            return json.load(f)
+    return {}
+
+def save_custom_locations(type: str, data: dict):
+    path = get_location_file(type)
+    with open(path, "w", encoding="utf-8") as f:
+        json.dump(data, f, ensure_ascii=False)
+
+def get_unit_file(type: str):
+    return f"unit_counts_{type}.json"
+
+def load_unit_counts(type: str):
+    path = get_unit_file(type)
+    if os.path.exists(path):
+        with open(path, "r", encoding="utf-8") as f:
+            return json.load(f)
+    return {}
+
+def save_unit_counts(type: str, data: dict):
+    path = get_unit_file(type)
+    with open(path, "w", encoding="utf-8") as f:
+        json.dump(data, f, ensure_ascii=False)
+
+
 @app.patch("/update-info")
 def update_info(data: dict):
     name = data.get("name")
@@ -280,37 +261,29 @@ def update_info(data: dict):
     new_need = data.get("need")
     new_location = data.get("location")
     new_unit_count = data.get("unitCount")
-    user_id = data.get("user_id", "default")  # 기본값 설정
 
     if not all([name, code, med_type]):
         raise HTTPException(status_code=400, detail="name, code, type는 필수입니다.")
 
-    updates = []
-    params = []
+    key = f"{name}::{code}"
 
+    # 필요 재고 저장 (기존에 없어도 상관없음)
     if new_need is not None:
-        updates.append("need_count = %s")
-        params.append(new_need)
+        needs = load_custom_needs(med_type)
+        needs[key] = new_need
+        save_custom_needs(med_type, needs)
+
+    # 위치 저장 (기존에 없어도 상관없음)
     if new_location is not None:
-        updates.append("location = %s")
-        params.append(new_location)
+        locations = load_custom_locations(med_type)
+        locations[key] = new_location
+        save_custom_locations(med_type, locations) 
+    
+    # 필요 통수 저장 (기존에 없어도 상관없음)
     if new_unit_count is not None:
-        updates.append("unit_count = %s")
-        params.append(new_unit_count)
+        unit_counts = load_unit_counts(med_type)
+        unit_counts[key] = new_unit_count
+        save_unit_counts(med_type, unit_counts)
 
-    if not updates:
-        raise HTTPException(status_code=400, detail="수정할 항목이 없습니다.")
-
-    params.extend([user_id, name, code, med_type])
-    set_clause = ", ".join(updates)
-
-    with conn.cursor() as cur:
-        cur.execute(f"""
-            UPDATE needs SET {set_clause}
-            WHERE user_id = %s AND drug_name = %s AND drug_code = %s AND type = %s
-        """, params)
-        conn.commit()
-
-    return {"status": "ok", "message": f"{name}({code}) 정보가 Supabase에 저장되었습니다."}
-
+    return {"status": "ok", "message": f"{name}({code}) 정보가 저장되었습니다."}
 

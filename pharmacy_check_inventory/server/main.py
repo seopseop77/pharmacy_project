@@ -175,6 +175,8 @@ def search_medicine(
         df["현재 통 수"] = 0
         df["주문 통 수"] = 0
 
+    df = df.sort_values(by=["약 이름", "약 코드"])  # ✅ 정렬 기준 추가
+
     return JSONResponse(content=df.fillna("NaN").to_dict(orient="records"))
 
 # 자동완성
@@ -276,7 +278,9 @@ def get_low_stock_medicines(
 
     df["부족상태"] = df.apply(get_status, axis=1)
 
-    filtered = df[df["부족상태"].isin(["심각", "주의"])]
+    filtered = df[df["부족상태"].isin(["심각", "주의"])] 
+
+    df = df.sort_values(by=["약 이름", "약 코드"])  # ✅ 정렬 기준 추가
 
     return JSONResponse(content=filtered.fillna("NaN").to_dict(orient="records"))
 
