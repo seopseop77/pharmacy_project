@@ -136,34 +136,39 @@ function App( {userId, onLogout} ) {
     }
   };
 
-  const handleKeyDown = (e) => {
-    const activeList = inputValue.trim() === "" ? recentSearches : suggestions;
-    if (activeList.length > 0) {
-      if (e.key === 'ArrowDown') {
-        e.preventDefault();
-        setHighlightedIndex((prev) => (prev + 1) % activeList.length);
-      } else if (e.key === 'ArrowUp') {
-        e.preventDefault();
-        setHighlightedIndex((prev) => (prev - 1 + activeList.length) % activeList.length);
-      } else if (e.key === 'Enter') {
-        if (highlightedIndex >= 0) {
-          const selected = activeList[highlightedIndex];
-          setInputValue(selected);
-          setSuggestions([]);
-          setRecentSearches([]);
-          setHighlightedIndex(-1);
-          handleSearch(selected);
-          return;
-        }
+const handleKeyDown = (e) => {
+  const activeList = inputValue.trim() === "" ? recentSearches : suggestions;
+
+  // 검색창에 focus된 경우에만 Enter로 검색 실행
+  const isSearchInputFocused = document.activeElement.getAttribute('placeholder')?.includes('입력');
+
+  if (activeList.length > 0) {
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      setHighlightedIndex((prev) => (prev + 1) % activeList.length);
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      setHighlightedIndex((prev) => (prev - 1 + activeList.length) % activeList.length);
+    } else if (e.key === 'Enter' && isSearchInputFocused) {
+      if (highlightedIndex >= 0) {
+        const selected = activeList[highlightedIndex];
+        setInputValue(selected);
         setSuggestions([]);
         setRecentSearches([]);
         setHighlightedIndex(-1);
-        handleSearch();
+        handleSearch(selected);
+        return;
       }
-    } else if (e.key === 'Enter') {
+      setSuggestions([]);
+      setRecentSearches([]);
+      setHighlightedIndex(-1);
       handleSearch();
     }
-  }; 
+  } else if (e.key === 'Enter' && isSearchInputFocused) {
+    handleSearch();
+  }
+};
+
 
   const handleNeedChange = async (name, code, value, currentLocation) => {
     setEditingCode(null);
@@ -320,8 +325,14 @@ function App( {userId, onLogout} ) {
 
   const handleLogout = async () => {
     onLogout();  // Root에서 logout 처리
-  };
+  }; 
 
+  const blockEnter = (e) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();  // 기본 제출 방지
+      e.stopPropagation(); // 검색 이벤트 버블링 방지
+    }
+  };
 
   const filteredResults = results;
   const totalPages = Math.ceil(filteredResults.length / ITEMS_PER_PAGE);
