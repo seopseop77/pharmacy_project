@@ -143,40 +143,40 @@ function App( {userId, onLogout} ) {
     }
   };
 
-const handleKeyDown = (e) => {
-  if (document.activeElement !== searchInputRef.current) return; // 검색창에 포커스 없으면 무시
+  const handleKeyDown = (e) => {
+    if (document.activeElement !== searchInputRef.current) return; // 검색창에 포커스 없으면 무시
 
-  const activeList = inputValue.trim() === "" ? recentSearches : suggestions;
+    const activeList = inputValue.trim() === "" ? recentSearches : suggestions;
 
-  // 검색창에 focus된 경우에만 Enter로 검색 실행
-  const isSearchInputFocused = document.activeElement.getAttribute('placeholder')?.includes('입력');
+    // 검색창에 focus된 경우에만 Enter로 검색 실행
+    const isSearchInputFocused = document.activeElement.getAttribute('placeholder')?.includes('입력');
 
-  if (activeList.length > 0) {
-    if (e.key === 'ArrowDown') {
-      e.preventDefault();
-      setHighlightedIndex((prev) => (prev + 1) % activeList.length);
-    } else if (e.key === 'ArrowUp') {
-      e.preventDefault();
-      setHighlightedIndex((prev) => (prev - 1 + activeList.length) % activeList.length);
-    } else if (e.key === 'Enter' && isSearchInputFocused) {
-      if (highlightedIndex >= 0) {
-        const selected = activeList[highlightedIndex];
-        setInputValue(selected);
+    if (activeList.length > 0) {
+      if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        setHighlightedIndex((prev) => (prev + 1) % activeList.length);
+      } else if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        setHighlightedIndex((prev) => (prev - 1 + activeList.length) % activeList.length);
+      } else if (e.key === 'Enter' && isSearchInputFocused) {
+        if (highlightedIndex >= 0) {
+          const selected = activeList[highlightedIndex];
+          setInputValue(selected);
+          setSuggestions([]);
+          setRecentSearches([]);
+          setHighlightedIndex(-1);
+          handleSearch(selected);
+          return;
+        }
         setSuggestions([]);
         setRecentSearches([]);
         setHighlightedIndex(-1);
-        handleSearch(selected);
-        return;
+        handleSearch();
       }
-      setSuggestions([]);
-      setRecentSearches([]);
-      setHighlightedIndex(-1);
+    } else if (e.key === 'Enter' && isSearchInputFocused) {
       handleSearch();
     }
-  } else if (e.key === 'Enter' && isSearchInputFocused) {
-    handleSearch();
-  }
-};
+  };
 
 
   const handleNeedChange = async (name, code, value, currentLocation) => {
@@ -193,7 +193,13 @@ const handleKeyDown = (e) => {
         user_id: userId,
         location: currentLocation // 현재 위치 유지
       });
-      await handleSearch();
+      // await handleSearch();
+      // ✅ 로컬 state 갱신
+      setResults(prev => prev.map(item =>
+        item['약 이름'] === name && item['약 코드'] === code
+          ? { ...item, '필요 재고': parsed }
+          : item
+      ));
     } catch (err) {
       console.error("필요 재고 업데이트 실패:", err);
     }
@@ -213,7 +219,13 @@ const handleKeyDown = (e) => {
         user_id: userId,
         location: trimmed
       });
-      await handleSearch();
+      // await handleSearch();
+      // ✅ 로컬 state 갱신
+      setResults(prev => prev.map(item =>
+        item['약 이름'] === name && item['약 코드'] === code
+          ? { ...item, '위치': parsed }
+          : item
+      ));
     } catch (err) {
       console.error("위치 업데이트 실패:", err);
     }
@@ -232,7 +244,13 @@ const handleKeyDown = (e) => {
         user_id: userId,
         unitCount: parsed
       });
-      await handleSearch();
+      // await handleSearch(); 
+      // ✅ 로컬 state 갱신
+      setResults(prev => prev.map(item =>
+        item['약 이름'] === name && item['약 코드'] === code
+          ? { ...item, '통당 수량': parsed }
+          : item
+      ));
     } catch (err) {
       console.error("통당 수량 업데이트 실패:", err);
     }
@@ -452,23 +470,7 @@ const handleKeyDown = (e) => {
             value={inputValue}
             onChange={handleInputChange}
             onFocus={handleInputFocus}
-            onKeyDown={(e) => {
-              const list = inputValue.trim() === "" ? recentSearches : suggestions;
-              if (e.key === 'ArrowDown') {
-                e.preventDefault();
-                setHighlightedIndex(i => (i + 1) % list.length);
-              } else if (e.key === 'ArrowUp') {
-                e.preventDefault();
-                setHighlightedIndex(i => (i - 1 + list.length) % list.length);
-              } else if (e.key === 'Enter' && highlightedIndex >= 0) {
-                e.preventDefault();
-                const sel = list[highlightedIndex];
-                setInputValue(sel);
-                setSuggestions([]);
-                setRecentSearches([]);
-                setHighlightedIndex(-1);
-              }
-            }}
+            onKeyDown={handleKeyDown}
             style={{ padding: '8px', width: '300px', marginRight: '10px' }}
           />
           <button type="submit">검색</button>
