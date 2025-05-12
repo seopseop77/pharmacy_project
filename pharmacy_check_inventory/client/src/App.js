@@ -223,7 +223,7 @@ function App( {userId, onLogout} ) {
       // ✅ 로컬 state 갱신
       setResults(prev => prev.map(item =>
         item['약 이름'] === name && item['약 코드'] === code
-          ? { ...item, '위치': parsed }
+          ? { ...item, '위치': trimmed }
           : item
       ));
     } catch (err) {
