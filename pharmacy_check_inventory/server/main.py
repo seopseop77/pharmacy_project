@@ -84,8 +84,13 @@ async def upload_inventory(
     # 2. 파일 읽기 (csv 또는 excel)
     try:
         if extension in ["xls", "xlsx"]:
-            df = pd.read_excel(io.BytesIO(content))
-            if type == "general":
+            try:
+                # .xls지만 내용은 CSV일 경우 → 문자열로 decode 후 처리
+                df = pd.read_csv(io.StringIO(content.decode("utf-8")))
+            except Exception:
+                # 진짜 Excel인 경우를 위해 fallback
+                df = pd.read_excel(io.BytesIO(content), engine="xlrd")
+            if type == "general": 
                 df = df.rename(columns={
                     "상품명": "약 이름",
                     "바코드": "약 코드",
