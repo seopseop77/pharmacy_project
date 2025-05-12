@@ -85,6 +85,18 @@ async def upload_inventory(
     try:
         if extension in ["xls", "xlsx"]:
             df = pd.read_excel(io.BytesIO(content))
+            if type == "general":
+                df = df.rename(columns={
+                    "상품명": "약 이름",
+                    "바코드": "약 코드",
+                    "재고수량": "현재 재고"
+                })
+            else:
+                df = df.rename(columns={
+                    "약품명": "약 이름",
+                    "약품코드": "약 코드",
+                    "재고합계": "현재 재고"
+                })
         elif extension == "csv":
             text_stream = io.StringIO(content.decode("utf-8"))
 
