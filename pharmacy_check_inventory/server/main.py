@@ -8,6 +8,7 @@ from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 from database import conn
 import io 
+import logging
 
 app = FastAPI()
 
@@ -19,6 +20,8 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 ) 
+ 
+logger = logging.getLogger(__name__)
 
 #
 # app.add_middleware(
@@ -112,12 +115,18 @@ async def upload_inventory(
 
     # 2. 파일 읽기 (csv 또는 excel)
     try:
+        logger.info(f"📦 업로드된 파일: {file.filename}, 확장자: {extension}, 약종: {type}")
+
         if extension in ["xls", "xlsx"]:
+            logger.info("📥 .xls/.xlsx 파일 파싱 시도 중 (parse_fake_xls_as_csv)")
             try:
                 df = parse_fake_xls_as_csv(content)
+                logger.info("✅ .xls 파일을 CSV로 성공적으로 파싱")
             except Exception as e:
+                logger.error(f"❌ .xls 파싱 실패: {e}")
                 raise HTTPException(status_code=400, detail=f".xls 파일 파싱 실패: {e}")
-            if type == "general": 
+
+            if type == "general":
                 df = df.rename(columns={
                     "상품명": "약 이름",
                     "바코드": "약 코드",
@@ -129,7 +138,9 @@ async def upload_inventory(
                     "약품코드": "약 코드",
                     "재고합계": "현재 재고"
                 })
+
         elif extension == "csv":
+            logger.info("📥 .csv 파일 파싱 시도 중")
             text_stream = io.StringIO(content.decode("utf-8"))
 
             if type == "general":
@@ -146,9 +157,12 @@ async def upload_inventory(
                     "약품코드": "약 코드",
                     "재고합계": "현재 재고"
                 })
+            logger.info("✅ CSV 파일 정상 파싱 완료")
         else:
+            logger.warning(f"❌ 지원되지 않는 파일 형식: {extension}")
             raise HTTPException(status_code=400, detail="지원하지 않는 파일 형식입니다. csv, xls, xlsx만 가능합니다.")
     except Exception as e:
+        logger.error(f"❌ 최종 파일 파싱 오류: {e}")
         raise HTTPException(status_code=400, detail=f"파일 파싱 오류: {e}")
 
     # 3. 현재 재고 숫자화
