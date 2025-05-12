@@ -70,6 +70,35 @@ def load_inventory(user_id: str, med_type: str) -> pd.DataFrame:
 
     return df[["약 이름", "약 코드", "현재 재고", "위치", "필요 재고", "통당 수량", "필요 통 수", "현재 통 수", "주문 통 수"]] 
 
+# xls 파일을 CSV로 파싱하는 헬퍼 함수
+def parse_fake_xls_as_csv(file_bytes, encoding="utf-8"):
+    """
+    이진 파일 내용을 문자열로 디코딩하여 CSV처럼 파싱
+    - 파일 내용은 실질적으로 CSV 포맷이어야 함
+    - 파일 확장자는 .xls일 수 있음
+    """
+    try:
+        # 1단계: 문자열로 디코딩 (일부 깨진 문자 무시)
+        text = file_bytes.decode(encoding, errors="ignore")
+
+        # 2단계: 한 줄씩 나눈 뒤, 헤더 탐색
+        lines = text.splitlines()
+        csv_lines = [line for line in lines if "," in line and len(line.split(",")) >= 3]
+
+        if not csv_lines:
+            raise ValueError("CSV 구조를 가진 줄을 찾을 수 없습니다.")
+
+        # 3단계: CSV 내용만 따로 추출해서 StringIO에 넣기
+        csv_text = "\n".join(csv_lines)
+        csv_stream = io.StringIO(csv_text)
+
+        # 4단계: 판다스로 CSV 읽기
+        df = pd.read_csv(csv_stream)
+        return df
+
+    except Exception as e:
+        raise ValueError(f"파일을 CSV로 파싱할 수 없습니다: {e}")
+
 # 업로드 API → 엑셀 파일을 파싱해서 Supabase DB에 삽입
 @app.post("/upload-inventory")
 async def upload_inventory(
@@ -85,11 +114,9 @@ async def upload_inventory(
     try:
         if extension in ["xls", "xlsx"]:
             try:
-                # .xls지만 내용은 CSV일 경우 → 문자열로 decode 후 처리
-                df = pd.read_csv(io.StringIO(content.decode("utf-8")))
-            except Exception:
-                # 진짜 Excel인 경우를 위해 fallback
-                df = pd.read_excel(io.BytesIO(content), engine="xlrd")
+                df = parse_fake_xls_as_csv(content)
+            except Exception as e:
+                raise HTTPException(status_code=400, detail=f".xls 파일 파싱 실패: {e}")
             if type == "general": 
                 df = df.rename(columns={
                     "상품명": "약 이름",
