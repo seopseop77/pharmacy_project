@@ -110,24 +110,44 @@ async def upload_inventory(
     except:
         df["현재 재고"] = 0
 
-    # Supabase DB 삽입
+    # Supabase DB 삽입 (기존 값 유지, 현재 재고만 업데이트)
     with conn.cursor() as cur:
-        cur.execute("DELETE FROM needs WHERE user_id = %s AND type = %s", (user_id, type))
-
         for _, row in df.iterrows():
+            drug_name = row["약 이름"]
+            drug_code = str(row["약 코드"])
+            present_count = row["현재 재고"]
+
+            # 기존 약 정보 존재 여부 확인
             cur.execute("""
-                INSERT INTO needs (user_id, type, drug_name, drug_code, present_count, need_count, location, unit_count)
-                VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
-            """, (
-                user_id,
-                type,
-                row["약 이름"],
-                str(row["약 코드"]),
-                row["현재 재고"],
-                row["필요 재고"],
-                row["위치"],
-                row["통당 수량"]
-            ))
+                SELECT need_count, location, unit_count FROM needs
+                WHERE user_id = %s AND type = %s AND drug_name = %s AND drug_code = %s
+            """, (user_id, type, drug_name, drug_code))
+            existing = cur.fetchone()
+
+            if existing:
+                # 기존 약 → 현재 재고만 업데이트
+                cur.execute("""
+                    UPDATE needs
+                    SET present_count = %s
+                    WHERE user_id = %s AND type = %s AND drug_name = %s AND drug_code = %s
+                """, (present_count, user_id, type, drug_name, drug_code))
+            else:
+                # 새로운 약 → 기본값으로 삽입
+                cur.execute("""
+                    INSERT INTO needs (
+                        user_id, type, drug_name, drug_code,
+                        present_count, need_count, location, unit_count
+                    ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+                """, (
+                    user_id,
+                    type,
+                    drug_name,
+                    drug_code,
+                    present_count,
+                    10,          # 기본 필요 재고
+                    "미지정",    # 기본 위치
+                    1            # 기본 통당 수량
+                ))
         conn.commit()
 
     return {"status": "ok", "message": f"{type} 재고가 성공적으로 Supabase에 저장되었습니다."}
