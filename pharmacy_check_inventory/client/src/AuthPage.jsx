@@ -60,7 +60,7 @@ function AuthPage({ onLogin }) {
   const handlePasswordReset = async () => {
     const email = buildEmail();
     const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: 'http://localhost:3000/reset-password'
+      redirectTo: 'https://pharmacy-frontend-zkt4.onrender.com/reset-password'
     });
     setMessage(error ? `❌ ${error.message}` : '✅ 비밀번호 재설정 이메일이 전송되었습니다.');
   };
