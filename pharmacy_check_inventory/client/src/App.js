@@ -465,6 +465,7 @@ function App( {userId, onLogout} ) {
           style={{ position: 'relative', marginBottom: '10px' }}
         >
           <input
+            ref={searchInputRef} 
             type="text"
             placeholder={searchType === 'name' ? "약 이름 입력" : "약 코드 입력"}
             value={inputValue}
