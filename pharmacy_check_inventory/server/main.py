@@ -7,6 +7,7 @@ import shutil
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 from database import conn
+import io 
 
 app = FastAPI()
 
@@ -76,48 +77,50 @@ async def upload_inventory(
     user_id: str = Query("default"),
     file: UploadFile = File(...)
 ):
+    # 1. 파일 확장자 확인
+    extension = file.filename.split(".")[-1].lower()
+    content = await file.read()  # 바이트로 읽기
 
-    if type not in ["professional", "general"]:
-        raise HTTPException(status_code=400, detail="type은 professional 또는 general 이어야 합니다.")
-
-    # 엑셀 파일 읽기
+    # 2. 파일 읽기 (csv 또는 excel)
     try:
-        if type == "general":
-            df = pd.read_csv(file.file, encoding="utf-8", skiprows=[1])
-            df = df.rename(columns={
-                "상품명": "약 이름",
-                "바코드": "약 코드",
-                "재고수량": "현재 재고"
-            })
+        if extension in ["xls", "xlsx"]:
+            df = pd.read_excel(io.BytesIO(content))
+        elif extension == "csv":
+            text_stream = io.StringIO(content.decode("utf-8"))
+
+            if type == "general":
+                df = pd.read_csv(text_stream, skiprows=[1])
+                df = df.rename(columns={
+                    "상품명": "약 이름",
+                    "바코드": "약 코드",
+                    "재고수량": "현재 재고"
+                })
+            else:
+                df = pd.read_csv(text_stream)
+                df = df.rename(columns={
+                    "약품명": "약 이름",
+                    "약품코드": "약 코드",
+                    "재고합계": "현재 재고"
+                })
         else:
-            df = pd.read_csv(file.file, encoding="utf-8")
-            df = df.rename(columns={
-                "약품명": "약 이름",
-                "약품코드": "약 코드",
-                "재고합계": "현재 재고"
-            })
+            raise HTTPException(status_code=400, detail="지원하지 않는 파일 형식입니다. csv, xls, xlsx만 가능합니다.")
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"파일 파싱 오류: {e}")
 
-    # 기본값 추가
-    df["필요 재고"] = 10
-    df["위치"] = "미지정"
-    df["통당 수량"] = 1
-
-    # 숫자 처리
+    # 3. 현재 재고 숫자화
     try:
         df["현재 재고"] = df["현재 재고"].astype(str).str.replace(",", "", regex=False).astype(float)
     except:
-        df["현재 재고"] = 0
+        df["현재 재고"] = 0.0
 
-    # Supabase DB 삽입 (기존 값 유지, 현재 재고만 업데이트)
+    # 4. Supabase에 삽입 또는 갱신
     with conn.cursor() as cur:
         for _, row in df.iterrows():
             drug_name = row["약 이름"]
             drug_code = str(row["약 코드"])
             present_count = row["현재 재고"]
 
-            # 기존 약 정보 존재 여부 확인
+            # 기존 데이터 조회
             cur.execute("""
                 SELECT need_count, location, unit_count FROM needs
                 WHERE user_id = %s AND type = %s AND drug_name = %s AND drug_code = %s
@@ -125,14 +128,14 @@ async def upload_inventory(
             existing = cur.fetchone()
 
             if existing:
-                # 기존 약 → 현재 재고만 업데이트
+                # 기존 약: 현재 재고만 갱신
                 cur.execute("""
                     UPDATE needs
                     SET present_count = %s
                     WHERE user_id = %s AND type = %s AND drug_name = %s AND drug_code = %s
                 """, (present_count, user_id, type, drug_name, drug_code))
             else:
-                # 새로운 약 → 기본값으로 삽입
+                # 신규 약: 기본값으로 삽입
                 cur.execute("""
                     INSERT INTO needs (
                         user_id, type, drug_name, drug_code,
@@ -144,9 +147,9 @@ async def upload_inventory(
                     drug_name,
                     drug_code,
                     present_count,
-                    10,          # 기본 필요 재고
-                    "미지정",    # 기본 위치
-                    1            # 기본 통당 수량
+                    10,           # 기본 필요 재고
+                    "미지정",     # 기본 위치
+                    1             # 기본 통당 수량
                 ))
         conn.commit()
 

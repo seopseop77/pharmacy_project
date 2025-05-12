@@ -1,9 +1,8 @@
 import React, { useEffect, useState } from 'react';
-import { useSearchParams, useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { supabase } from './supabase';
 
 function ResetPassword() {
-  const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const [newPassword, setNewPassword] = useState('');
   const [message, setMessage] = useState('');
@@ -22,14 +21,14 @@ function ResetPassword() {
       }).then(async () => {
         const { data, error } = await supabase.auth.getUser();
         if (data?.user?.id) {
-          // ✅ 세션이 복원되고 사용자 확인됨 → 홈으로 이동
-          navigate('/');
+          console.log("✅ 세션 복원 완료:", data.user.id);
+          // navigate('/') 제거됨 ✅
         }
       });
     } else {
-      console.warn('❗ 토큰이 해시에 없습니다.');
+      console.warn('❗ 해시에 토큰이 없습니다.');
     }
-  }, [navigate]);
+  }, []);
 
   const handleUpdatePassword = async () => {
     const {
@@ -37,7 +36,7 @@ function ResetPassword() {
     } = await supabase.auth.getSession();
 
     if (!session) {
-      setMessage('❌ Auth session missing!');
+      setMessage('❌ 인증 세션이 존재하지 않습니다.');
       return;
     }
 
@@ -45,8 +44,8 @@ function ResetPassword() {
     if (error) {
       setMessage(`❌ ${error.message}`);
     } else {
-      setMessage('✅ 비밀번호가 성공적으로 변경되었습니다.');
-      setTimeout(() => navigate('/'), 2000);  // ✅ 홈으로 이동
+      setMessage('✅ 비밀번호가 성공적으로 변경되었습니다. 잠시 후 로그인 화면으로 이동합니다.');
+      setTimeout(() => navigate('/'), 2000);
     }
   };
 
@@ -58,6 +57,7 @@ function ResetPassword() {
         placeholder="새 비밀번호"
         value={newPassword}
         onChange={(e) => setNewPassword(e.target.value)}
+        style={{ padding: '8px', width: '250px' }}
       />
       <br /><br />
       <button onClick={handleUpdatePassword}>비밀번호 변경</button>
