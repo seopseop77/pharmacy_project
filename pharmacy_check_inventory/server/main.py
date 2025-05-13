@@ -147,6 +147,7 @@ async def upload_inventory(
                     # logger.info("✅ 헬퍼로 CSV 포맷 파싱 성공")
                 except Exception as ee:
                     logger.error(f"❌ 엑셀 파싱 최종 실패: {ee}")
+                    logger.error(f"❌ 엑셀 파싱 최종 실패: {ee}")
                     raise HTTPException(status_code=400, detail=f"Excel 파일 파싱 실패: {ee}")
 
             if type == "general":
