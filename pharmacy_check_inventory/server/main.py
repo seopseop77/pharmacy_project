@@ -113,17 +113,32 @@ async def upload_inventory(
     extension = file.filename.split(".")[-1].lower()
     content = await file.read()  # 바이트로 읽기
 
+    # 2. BytesIO 래핑 & 헤더 검사
+    excel_io = io.BytesIO(content)
+    excel_io.seek(0)
+    header = excel_io.read(2)   # ZIP 파일은 b'PK'
+    excel_io.seek(0)
+
+    # 3. 엔진 결정
+    if header == b'PK':
+        engine = "openpyxl"
+    elif extension == "xls":
+        engine = "xlrd"
+    elif extension == "xlsx":
+        engine = "openpyxl"
+    else:
+        engine = None  # pandas가 자동으로 엔진 탐지
+
     # 2. 파일 읽기 (csv 또는 excel)
     try:
-        # logger.info(f"📦 업로드된 파일: {file.filename}, 확장자: {extension}, 약종: {type}")
+        logger.info(f"📦 업로드된 파일: {file.filename}, 확장자: {extension}, 약종: {type}")
 
         if extension in ["xls", "xlsx"]:
             try:
-                # 바이트 스트림으로 래핑한 뒤 pandas로 읽기
-                excel_io = io.BytesIO(content)
-                engine = "xlrd" if extension == "xls" else "openpyxl"
-                df = pd.read_excel(excel_io, engine=engine, dtype=str)
-                # logger.info("✅ Excel(.xls/.xlsx) 파일 파싱 성공")
+                if engine:
+                    df = pd.read_excel(excel_io, engine=engine, dtype=str)
+                else:
+                    df = pd.read_excel(excel_io, dtype=str)
             except Exception as e:
                 logger.warning(f"⚠️ pandas.read_excel 실패: {e}")
                 # CSV 포맷으로 저장된 .xls 대응용 헬퍼 재시도
