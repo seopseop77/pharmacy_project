@@ -131,7 +131,7 @@ async def upload_inventory(
 
     # 2. 파일 읽기 (csv 또는 excel)
     try:
-        logger.info(f"📦 업로드된 파일: {file.filename}, 확장자: {extension}, 약종: {type}")
+        logger.warning(f"📦 업로드된 파일: {file.filename}, 확장자: {extension}, 약종: {type}")
 
         if extension in ["xls", "xlsx"]:
             try:
