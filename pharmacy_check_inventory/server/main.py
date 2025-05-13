@@ -120,29 +120,27 @@ async def upload_inventory(
         if extension in ["xls", "xlsx"]:
             excel_io = io.BytesIO(content)
             try:
-                df = pd.read_excel(excel_io, engine="pyxlsb", dtype=str)
-                logger.info("✅ pyxlsb 엔진으로 파싱 성공")
-            except Exception as e_px:
-                logger.warning(f"⚠️ pyxlsb 파싱 실패: {e_px}. 기존 엔진으로 재시도")
-                # 3. 기존 헤더 검사 + engine 결정 로직
-                excel_io.seek(0)
-                header = excel_io.read(2)
-                excel_io.seek(0)
-
-                if header == b'PK' or extension == "xlsx":
-                    engine = "openpyxl"
-                else:
-                    engine = "xlrd"  # .xls
-
+                # .xls/.xlsx 자동 감지
+                df = pd.read_excel(excel_io, dtype=str)
+                logger.info("✅ pandas.read_excel 성공")
+            except Exception as e_excel:
+                logger.warning(f"⚠️ read_excel 실패: {e_excel}. HTML 폴백 시도")
+                # 3. HTML 테이블 폴백
                 try:
-                    df = pd.read_excel(excel_io, engine=engine, dtype=str)
-                    logger.info(f"✅ pandas.{engine} 엔진으로 파싱 성공")
-                except Exception as e_orig:
-                    logger.error(f"❌ 엑셀 파싱 모두 실패: pyxlsb({e_px}), {engine}({e_orig})")
+                    html = content.decode("utf-8", errors="ignore")
+                    tables = pd.read_html(html)
+                    df = tables[0]
+                    logger.info("✅ pandas.read_html 성공")
+                except Exception as e_html:
+                    logger.error(f"❌ 모든 파싱 시도 실패: Excel({e_excel}); HTML({e_html})")
                     raise HTTPException(
                         status_code=400,
-                        detail=f"Excel 파일 파싱 실패: pyxlsb error: {e_px}; {engine} error: {e_orig}"
-        )
+                        detail=(
+                            f"파일 파싱 실패:\n"
+                            f"- Excel 엔진 에러: {e_excel}\n"
+                            f"- HTML 폴백 에러: {e_html}"
+                        )
+                    )
 
             if type == "general":
                 df = df.rename(columns={
