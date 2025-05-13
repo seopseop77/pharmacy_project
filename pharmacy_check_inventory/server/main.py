@@ -115,16 +115,23 @@ async def upload_inventory(
 
     # 2. 파일 읽기 (csv 또는 excel)
     try:
-        logger.info(f"📦 업로드된 파일: {file.filename}, 확장자: {extension}, 약종: {type}")
+        # logger.info(f"📦 업로드된 파일: {file.filename}, 확장자: {extension}, 약종: {type}")
 
         if extension in ["xls", "xlsx"]:
-            logger.info("📥 .xls/.xlsx 파일 파싱 시도 중 (parse_fake_xls_as_csv)")
             try:
-                df = parse_fake_xls_as_csv(content)
-                logger.info("✅ .xls 파일을 CSV로 성공적으로 파싱")
+                # 바이트 스트림으로 래핑한 뒤 pandas로 읽기
+                excel_io = io.BytesIO(content)
+                df = pd.read_excel(excel_io, engine="xlrd", dtype=str)
+                logger.info("✅ Excel(.xls/.xlsx) 파일 파싱 성공")
             except Exception as e:
-                logger.error(f"❌ .xls 파싱 실패: {e}")
-                raise HTTPException(status_code=400, detail=f".xls 파일 파싱 실패: {e}")
+                logger.warning(f"⚠️ pandas.read_excel 실패: {e}")
+                # CSV 포맷으로 저장된 .xls 대응용 헬퍼 재시도
+                try:
+                    df = parse_fake_xls_as_csv(content)
+                    # logger.info("✅ 헬퍼로 CSV 포맷 파싱 성공")
+                except Exception as ee:
+                    logger.error(f"❌ 엑셀 파싱 최종 실패: {ee}")
+                    raise HTTPException(status_code=400, detail=f"Excel 파일 파싱 실패: {ee}")
 
             if type == "general":
                 df = df.rename(columns={
@@ -140,7 +147,7 @@ async def upload_inventory(
                 })
 
         elif extension == "csv":
-            logger.info("📥 .csv 파일 파싱 시도 중")
+            # logger.info("📥 .csv 파일 파싱 시도 중")
             text_stream = io.StringIO(content.decode("utf-8"))
 
             if type == "general":
@@ -157,7 +164,7 @@ async def upload_inventory(
                     "약품코드": "약 코드",
                     "재고합계": "현재 재고"
                 })
-            logger.info("✅ CSV 파일 정상 파싱 완료")
+            # logger.info("✅ CSV 파일 정상 파싱 완료")
         else:
             logger.warning(f"❌ 지원되지 않는 파일 형식: {extension}")
             raise HTTPException(status_code=400, detail="지원하지 않는 파일 형식입니다. csv, xls, xlsx만 가능합니다.")
