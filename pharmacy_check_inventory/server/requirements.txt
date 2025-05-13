@@ -8,3 +8,4 @@ python-dotenv
 xlrd>=2.0.1
 openpyxl>=3.0.0
 pyxlsb>=1.0.9
+lxml>=4.6.0
