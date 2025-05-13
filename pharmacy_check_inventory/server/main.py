@@ -113,42 +113,36 @@ async def upload_inventory(
     extension = file.filename.split(".")[-1].lower()
     content = await file.read()  # 바이트로 읽기
 
-    # 2. BytesIO 래핑 & 헤더 검사
-    excel_io = io.BytesIO(content)
-    excel_io.seek(0)
-    header = excel_io.read(2)   # ZIP 파일은 b'PK'
-    excel_io.seek(0)
-
-    # 3. 엔진 결정
-    if header == b'PK':
-        engine = "openpyxl"
-    elif extension == "xls":
-        engine = "xlrd"
-    elif extension == "xlsx":
-        engine = "openpyxl"
-    else:
-        engine = None  # pandas가 자동으로 엔진 탐지
-
     # 2. 파일 읽기 (csv 또는 excel)
     try:
         logger.warning(f"📦 업로드된 파일: {file.filename}, 확장자: {extension}, 약종: {type}")
 
         if extension in ["xls", "xlsx"]:
+            excel_io = io.BytesIO(content)
             try:
-                if engine:
-                    df = pd.read_excel(excel_io, engine=engine, dtype=str)
+                df = pd.read_excel(excel_io, engine="pyxlsb", dtype=str)
+                logger.info("✅ pyxlsb 엔진으로 파싱 성공")
+            except Exception as e_px:
+                logger.warning(f"⚠️ pyxlsb 파싱 실패: {e_px}. 기존 엔진으로 재시도")
+                # 3. 기존 헤더 검사 + engine 결정 로직
+                excel_io.seek(0)
+                header = excel_io.read(2)
+                excel_io.seek(0)
+
+                if header == b'PK' or extension == "xlsx":
+                    engine = "openpyxl"
                 else:
-                    df = pd.read_excel(excel_io, dtype=str)
-            except Exception as e:
-                logger.warning(f"⚠️ pandas.read_excel 실패: {e}")
-                # CSV 포맷으로 저장된 .xls 대응용 헬퍼 재시도
+                    engine = "xlrd"  # .xls
+
                 try:
-                    df = parse_fake_xls_as_csv(content)
-                    # logger.info("✅ 헬퍼로 CSV 포맷 파싱 성공")
-                except Exception as ee:
-                    logger.error(f"❌ 엑셀 파싱 최종 실패: {ee}")
-                    logger.error(f"❌ 엑셀 파싱 최종 실패: {ee}")
-                    raise HTTPException(status_code=400, detail=f"Excel 파일 파싱 실패: {ee}")
+                    df = pd.read_excel(excel_io, engine=engine, dtype=str)
+                    logger.info(f"✅ pandas.{engine} 엔진으로 파싱 성공")
+                except Exception as e_orig:
+                    logger.error(f"❌ 엑셀 파싱 모두 실패: pyxlsb({e_px}), {engine}({e_orig})")
+                    raise HTTPException(
+                        status_code=400,
+                        detail=f"Excel 파일 파싱 실패: pyxlsb error: {e_px}; {engine} error: {e_orig}"
+        )
 
             if type == "general":
                 df = df.rename(columns={
