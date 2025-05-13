@@ -6,9 +6,10 @@ import json
 import shutil
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
-from database import conn
+from database import conn as _global_conn
 import io 
 import logging
+import psycopg2
 
 app = FastAPI()
 
@@ -22,6 +23,19 @@ app.add_middleware(
 ) 
  
 logger = logging.getLogger(__name__)
+
+def get_conn():
+    global _global_conn
+    if _global_conn.closed:
+        # database.py 에 있던 connect 설정을 그대로 복사하세요
+        _global_conn = psycopg2.connect(
+            host="YOUR_HOST",
+            dbname="YOUR_DB",
+            user="YOUR_USER",
+            password="YOUR_PASS",
+            port=5432
+        )
+    return _global_conn
 
 #
 # app.add_middleware(
@@ -41,6 +55,7 @@ logger = logging.getLogger(__name__)
 #         return rows
 
 def load_inventory(user_id: str, med_type: str) -> pd.DataFrame:
+    conn = get_conn()
     with conn.cursor() as cur:
         cur.execute("""
             SELECT * FROM needs
@@ -188,6 +203,7 @@ async def upload_inventory(
         df["현재 재고"] = 0.0
 
     # 4. Supabase에 삽입 또는 갱신
+    conn = get_conn()
     with conn.cursor() as cur:
         for _, row in df.iterrows():
             drug_name = row["약 이름"]
@@ -237,6 +253,7 @@ def search_medicine(
     type: str = Query("professional"),
     user_id: str = Query("default")
 ):
+    conn = get_conn()
     with conn.cursor() as cur:
         if name == "all" or code == "all":
             cur.execute("SELECT * FROM needs WHERE user_id = %s AND type = %s", (user_id, type))
@@ -283,6 +300,7 @@ def autocomplete(
     type: str = Query("professional"),
     user_id: str = Query("default")
 ):
+    conn = get_conn()
     with conn.cursor() as cur:
         cur.execute("""
             SELECT DISTINCT drug_name FROM needs
@@ -300,17 +318,14 @@ def add_recent_search(keyword: str = Query(...), type: str = Query("professional
     if not keyword:
         return {"status": "empty"}
 
+    conn = get_conn()
     with conn.cursor() as cur:
-        # 중복 제거
-        cur.execute("""
-            DELETE FROM recent_searches
-            WHERE user_id = %s AND type = %s AND keyword = %s
-        """, (user_id, type, keyword))
-
-        # 삽입
+        # ON CONFLICT로 삽입하거나 중복 시 created_at만 갱신
         cur.execute("""
             INSERT INTO recent_searches (user_id, type, keyword, created_at)
             VALUES (%s, %s, %s, NOW())
+            ON CONFLICT (user_id, type, keyword)
+            DO UPDATE SET created_at = EXCLUDED.created_at
         """, (user_id, type, keyword))
         conn.commit()
 
@@ -318,6 +333,7 @@ def add_recent_search(keyword: str = Query(...), type: str = Query("professional
 
 @app.get("/recent-searches")
 def get_recent_searches(type: str = Query("professional"), user_id: str = Query("default")):
+    conn = get_conn()
     with conn.cursor() as cur:
         cur.execute("""
             SELECT keyword FROM recent_searches
@@ -334,6 +350,7 @@ def get_low_stock_medicines(
     type: str = Query(...),
     user_id: str = Query("default")
 ):
+    conn = get_conn()
     with conn.cursor() as cur:
         cur.execute("""
             SELECT * FROM needs
@@ -414,6 +431,7 @@ def update_info(data: dict):
     params.extend([user_id, name, code, med_type])
     set_clause = ", ".join(updates)
 
+    conn = get_conn()
     with conn.cursor() as cur:
         cur.execute(f"""
             UPDATE needs SET {set_clause}

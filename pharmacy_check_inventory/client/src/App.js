@@ -336,6 +336,9 @@ function App( {userId, onLogout} ) {
       return;
     }
 
+    // 업로드 시작 시 상태 업데이트
+    setUploadStatus("업로드 중...");
+
     const formData = new FormData();
     formData.append("file", uploadFile);
 
