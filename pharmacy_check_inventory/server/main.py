@@ -121,8 +121,9 @@ async def upload_inventory(
             try:
                 # 바이트 스트림으로 래핑한 뒤 pandas로 읽기
                 excel_io = io.BytesIO(content)
-                df = pd.read_excel(excel_io, engine="xlrd", dtype=str)
-                logger.info("✅ Excel(.xls/.xlsx) 파일 파싱 성공")
+                engine = "xlrd" if extension == "xls" else "openpyxl"
+                df = pd.read_excel(excel_io, engine=engine, dtype=str)
+                # logger.info("✅ Excel(.xls/.xlsx) 파일 파싱 성공")
             except Exception as e:
                 logger.warning(f"⚠️ pandas.read_excel 실패: {e}")
                 # CSV 포맷으로 저장된 .xls 대응용 헬퍼 재시도

@@ -5,3 +5,5 @@ pandas
 python-multipart
 psycopg2-binary
 python-dotenv
+xlrd>=2.0.1
+openpyxl>=3.0.0
