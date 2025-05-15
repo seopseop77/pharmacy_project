@@ -9,7 +9,7 @@ from pydantic import BaseModel
 from database import conn as _global_conn
 import io 
 import logging
-import psycopg2
+from database import get_conn
 
 app = FastAPI()
 
@@ -23,19 +23,6 @@ app.add_middleware(
 ) 
  
 logger = logging.getLogger(__name__)
-
-def get_conn():
-    global _global_conn
-    if _global_conn.closed:
-        # database.py 에 있던 connect 설정을 그대로 복사하세요
-        _global_conn = psycopg2.connect(
-            host="YOUR_HOST",
-            dbname="YOUR_DB",
-            user="YOUR_USER",
-            password="YOUR_PASS",
-            port=5432
-        )
-    return _global_conn
 
 #
 # app.add_middleware(
